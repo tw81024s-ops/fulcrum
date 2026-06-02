@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>運能監控看板 v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F4F2EC; --panel:#FFFFFF; --ink:#1B1D1C; --sub:#6E706B; --faint:#9A9C96;
+    --line:#E3E0D7; --line2:#EFEDE6;
+    --accent:#1F4E4A;
+    --red:#D84541; --amber:#E0931F; --green:#5C9224; --blue:#3580D0;
+    --redbg:#FBEAE9; --ambbg:#FBF1DF; --grnbg:#EDF3E3; --blubg:#E7F0FA;
+    --r:10px;
+    --mono:'IBM Plex Mono',monospace; --disp:'Archivo',sans-serif; --tc:'Noto Sans TC',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--tc),var(--disp);
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;padding:0 0 60px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+  /* header */
+  header{border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:20}
+  .htop{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 0 14px}
+  .brand{display:flex;align-items:baseline;gap:12px}
+  .brand h1{font-family:var(--disp);font-weight:800;font-size:21px;letter-spacing:-0.02em}
+  .brand .v{font-family:var(--mono);font-size:11px;color:var(--accent);border:1px solid var(--accent);
+    border-radius:5px;padding:1px 6px;font-weight:500}
+  .meta{font-size:12px;color:var(--sub)}
+  .meta b{color:var(--ink);font-weight:500}
+  .controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:14px}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--panel)}
+  .seg button{font-family:var(--tc);border:none;background:transparent;padding:7px 15px;font-size:13px;
+    color:var(--sub);cursor:pointer;border-left:1px solid var(--line)}
+  .seg button:first-child{border-left:none}
+  .seg button.on{background:var(--accent);color:#fff;font-weight:500}
+  .spacer{flex:1}
+  .pbtn{font-family:var(--tc);border:1px solid var(--line);background:var(--panel);border-radius:8px;
+    padding:7px 13px;font-size:13px;color:var(--ink);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
+  .pbtn:hover{border-color:var(--accent);color:var(--accent)}
+  .statuspill{font-size:11px;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:4px 9px}
+
+  /* kpis */
+  .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:11px;margin:18px 0}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px}
+  .kpi .l{font-size:11.5px;color:var(--sub);margin-bottom:6px;letter-spacing:.01em}
+  .kpi .n{font-family:var(--mono);font-size:25px;font-weight:600;letter-spacing:-.01em;line-height:1}
+  .kpi .u{font-size:11px;color:var(--faint);margin-top:5px}
+  @media(max-width:900px){.kpis{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:560px){.kpis{grid-template-columns:repeat(2,1fr)}}
+
+  /* kt2 banner */
+  .banner{display:flex;align-items:center;gap:12px;background:var(--redbg);border:1px solid #F0CFCD;
+    border-radius:var(--r);padding:11px 15px;margin-bottom:18px;font-size:13px}
+  .banner .dot{width:9px;height:9px;border-radius:50%;background:var(--red);flex:none}
+  .banner b{color:var(--red)}
+
+  /* view tabs */
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:4px}
+  .tabs button{font-family:var(--tc);border:none;background:transparent;padding:10px 16px 12px;font-size:14px;
+    color:var(--sub);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500}
+  .tabs button.on{color:var(--accent);border-bottom-color:var(--accent)}
+  .tabhint{font-size:12px;color:var(--sub);padding:12px 2px 4px}
+
+  /* chart */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+  .row{display:grid;grid-template-columns:118px 1fr 132px;align-items:center;gap:12px;padding:5px 0}
+  .row+.row{border-top:1px solid var(--line2)}
+  .rname{display:flex;align-items:center;gap:7px;font-size:13px}
+  .rname .g{font-size:10.5px;color:var(--faint)}
+  .sdot{width:8px;height:8px;border-radius:50%;flex:none}
+  .track{position:relative;height:18px;background:var(--line2);border-radius:4px}
+  .fill{position:absolute;left:0;top:0;bottom:0;border-radius:4px;opacity:.88}
+  .marker{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink);opacity:.55}
+  .rval{font-family:var(--mono);font-size:12px;text-align:right}
+  .rval .s{color:var(--faint);font-weight:400}
+  .center{position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--faint);opacity:.5}
+
+  /* param drawer */
+  .scrim{position:fixed;inset:0;background:rgba(20,22,20,.34);opacity:0;pointer-events:none;transition:.2s;z-index:40}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:340px;max-width:88vw;background:var(--panel);
+    border-left:1px solid var(--line);transform:translateX(100%);transition:.24s cubic-bezier(.4,0,.2,1);
+    z-index:50;padding:22px;overflow-y:auto}
+  .drawer.on{transform:none}
+  .drawer h3{font-family:var(--disp);font-size:16px;font-weight:700;margin-bottom:4px}
+  .drawer .dsub{font-size:12px;color:var(--sub);margin-bottom:18px}
+  .field{margin-bottom:18px}
+  .field label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:7px}
+  .field label .pv{font-family:var(--mono);font-weight:600;color:var(--accent)}
+  .field input[type=range]{width:100%;accent-color:var(--accent)}
+  .field .desc{font-size:11px;color:var(--faint);margin-top:5px}
+  .drawer .close{position:absolute;top:18px;right:18px;border:none;background:none;font-size:20px;
+    color:var(--sub);cursor:pointer}
+  .resetb{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:10px;
+    font-family:var(--tc);font-size:13px;cursor:pointer;margin-top:6px}
+  .sharehdr{font-size:13px;font-weight:500;margin:22px 0 4px;display:flex;justify-content:space-between;align-items:baseline;border-top:1px solid var(--line);padding-top:18px}
+  .sharehdr span{font-size:12px;color:var(--accent)}
+  .sharerow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:3px 0;font-size:12px}
+  .sharerow .nm{color:var(--sub)}
+  .sharerow input{width:62px;font-family:var(--mono);font-size:12px;text-align:right;border:1px solid var(--line);
+    border-radius:5px;padding:4px 6px;background:var(--panel)}
+  .sharerow input:focus{outline:none;border-color:var(--accent)}
+
+  .legend{display:flex;gap:15px;flex-wrap:wrap;font-size:11px;color:var(--sub);margin-top:14px;align-items:center}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .legend i{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  footer{margin-top:22px;font-size:11.5px;color:var(--faint);line-height:1.7}
+  footer b{color:var(--sub);font-weight:500}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="htop">
+      <div class="brand">
+        <h1>運能監控</h1><span class="v mono">v1</span>
+      </div>
+      <div class="meta">資料期間 <b>2026/05</b> · 末端 28 站(已排除 Kt2、DC 轉運)· 來源:配比初版 + 每日均件 + 人數 + 車輛</div>
+    </div>
+    <div class="controls">
+      <div class="seg" id="modeSeg">
+        <button data-m="act" class="on">現況(實際)</button>
+        <button data-m="tgt">目標(80萬)</button>
+      </div>
+      <div class="seg" id="deptSeg">
+        <button data-d="all" class="on">全網</button>
+        <button data-d="北區">北區</button>
+        <button data-d="中南">中南</button>
+      </div>
+      <span class="statuspill mono" id="status">載入中…</span>
+      <div class="spacer"></div>
+      <button class="pbtn" id="openParam">⚙ 參數試算</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="kpis" id="kpis"></div>
+  <div class="banner">
+    <span class="dot"></span>
+    <div><b>Kt2 為轉運樞紐(另計)</b> ── 日均約 2 萬件、僅 18 配送專員,量非自配、須往下分流,不納入末端配比。</div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button data-v="vol" class="on">件量配比</button>
+    <button data-v="ppl">人力缺餘</button>
+    <button data-v="veh">人車比</button>
+  </div>
+  <div class="tabhint" id="tabhint"></div>
+  <div class="panel">
+    <div id="chart"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <footer id="foot"></footer>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer">
+  <button class="close" id="closeParam">×</button>
+  <h3>參數試算</h3>
+  <div class="dsub">拖動即時重算(不影響正式值)。正式部署時這些參數放 Google Sheet。</div>
+  <div id="fields"></div>
+  <div class="sharehdr">各站目標配比 <span id="shareTot" class="mono"></span></div>
+  <div class="dsub" style="margin:-6px 0 10px">用於「目標」模式分配總目標件量。共用/正式配比請改 Sheet「站所」的占比欄。</div>
+  <div id="shareList"></div>
+  <button class="resetb" id="resetParam">↺ 還原預設</button>
+</aside>
+
+<script>
+/* ============================================================
+   資料區 — 正式部署時改成從 GAS 讀取 (JSONP) 後填入 DATA
+   ============================================================ */
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbws0sGYpoYCmTscXgPVNVJr0oLcfWKabAm1QZCVp1fb6OehCXAslMMeZA-x4pCfq9c8/exec';
+
+/* 以下為內建範例,連得上 GAS 會被 Sheet 資料覆蓋;連不上則沿用此範例 */
+let DATA = [{"st":"CS12","group":"中彰組","tot":34,"deli":32,"ops":1,"disp":0,"veh":34,"share":0.10592,"actM":65728},{"st":"Nt21","group":"北一南組","tot":29,"deli":23,"ops":4,"disp":1,"veh":30,"share":0.07651,"actM":47971},{"st":"Nt17","group":"北二北組","tot":25,"deli":21,"ops":3,"disp":0,"veh":19,"share":0.07064,"actM":44096},{"st":"NS15","group":"北二南組","tot":14,"deli":12,"ops":1,"disp":0,"veh":12,"share":0.04994,"actM":31186},{"st":"TS3","group":"桃竹一組","tot":16,"deli":13,"ops":3,"disp":0,"veh":8,"share":0.04727,"actM":29471},{"st":"KS1","group":"南二南組","tot":22,"deli":17,"ops":2,"disp":1,"veh":18,"share":0.04536,"actM":28053},{"st":"NS2","group":"北二北組","tot":15,"deli":12,"ops":3,"disp":0,"veh":21,"share":0.04333,"actM":26896},{"st":"CS3","group":"台中組","tot":17,"deli":13,"ops":3,"disp":3,"veh":16,"share":0.04209,"actM":26027},{"st":"Nt3","group":"北一北組","tot":15,"deli":12,"ops":2,"disp":0,"veh":11,"share":0.04141,"actM":25891},{"st":"NS5","group":"北一北組","tot":16,"deli":13,"ops":2,"disp":0,"veh":14,"share":0.03949,"actM":24602},{"st":"Nt13","group":"北二南組","tot":13,"deli":10,"ops":2,"disp":0,"veh":10,"share":0.03687,"actM":22931},{"st":"Nt16","group":"北一北組","tot":15,"deli":12,"ops":3,"disp":1,"veh":11,"share":0.03512,"actM":21981},{"st":"CS4","group":"台中組","tot":12,"deli":9,"ops":2,"disp":3,"veh":14,"share":0.03144,"actM":19645},{"st":"SS3","group":"南一南組","tot":16,"deli":12,"ops":3,"disp":0,"veh":12,"share":0.0291,"actM":17983},{"st":"TS5","group":"桃竹二組","tot":9,"deli":7,"ops":2,"disp":2,"veh":5,"share":0.02498,"actM":15582},{"st":"TS11","group":"桃竹二組","tot":11,"deli":8,"ops":2,"disp":0,"veh":13,"share":0.02399,"actM":14909},{"st":"Nt19","group":"北一北組","tot":7,"deli":5,"ops":1,"disp":0,"veh":5,"share":0.02181,"actM":13508},{"st":"NS6","group":"桃竹一組","tot":9,"deli":6,"ops":3,"disp":0,"veh":44,"share":0.02108,"actM":12986},{"st":"St8","group":"南一南組","tot":7,"deli":6,"ops":1,"disp":0,"veh":7,"share":0.02047,"actM":12736},{"st":"St6","group":"南一北組","tot":10,"deli":6,"ops":3,"disp":0,"veh":7,"share":0.01927,"actM":11937},{"st":"KS3","group":"南二南組","tot":10,"deli":8,"ops":2,"disp":0,"veh":8,"share":0.01911,"actM":11903},{"st":"TS1","group":"桃竹一組","tot":9,"deli":5,"ops":4,"disp":0,"veh":10,"share":0.0184,"actM":11238},{"st":"NS10","group":"北二南組","tot":6,"deli":3,"ops":3,"disp":0,"veh":4,"share":0.01689,"actM":10667},{"st":"Tt6","group":"桃竹二組","tot":9,"deli":6,"ops":2,"disp":1,"veh":3,"share":0.0168,"actM":10464},{"st":"NS18","group":"北一南組","tot":6,"deli":4,"ops":2,"disp":0,"veh":4,"share":0.01119,"actM":7060},{"st":"SS7","group":"南一南組","tot":5,"deli":3,"ops":2,"disp":0,"veh":13,"share":0.00888,"actM":5583},{"st":"St5","group":"南一北組","tot":6,"deli":3,"ops":0,"disp":0,"veh":3,"share":0.00877,"actM":5505},{"st":"Tt8","group":"桃竹二組","tot":5,"deli":3,"ops":2,"disp":0,"veh":1,"share":0.00606,"actM":3773}];
+
+/* ============================================================
+   參數區 — 正式部署時改成從 Google Sheet「參數」分頁讀取
+   ============================================================ */
+const DEFAULTS = {
+  sched:   1.3,      // 排班係數 (在職基數 = 編制總 × 此值)
+  attend:  0.7,      // 每日到班率
+  perCap:  53,       // 標準人均 (件 / 總人 / 日)
+  target:  800000,   // 當月總目標件量
+  days:    30,       // 配送天數 / 月
+  redT:    110,      // 紅燈門檻 %
+  amberT:  100,      // 黃燈門檻 %
+  lowT:    70        // 過剩門檻 %
+};
+let P = {...DEFAULTS};
+let shareOverride = {};   // 各站配比試算覆寫 {站:小數}
+let mode='act', dept='all', view='vol';
+
+const COL={red:'#D84541',amber:'#E0931F',green:'#5C9224',blue:'#3580D0'};
+const fmt=n=>Math.round(n).toLocaleString();
+const deptOf=st=>/^[NT]/.test(st)?'北區':'中南';
+const shareOf=d=> (d.st in shareOverride) ? shareOverride[d.st] : d.share;
+
+function calc(d){
+  const onDuty = d.tot * P.sched * P.attend;          // 每日到班人
+  const capP   = onDuty * P.perCap;                    // 人力運能(件)
+  const demand = mode==='act' ? d.actM/P.days : P.target*shareOf(d)/P.days;
+  const load   = capP>0 ? demand/capP*100 : 0;         // 利用率
+  const gapQ   = demand - capP;                        // 件缺口(+短/-餘)
+  const needP  = demand/P.perCap - onDuty;             // 人缺餘(+短/-餘)
+  const ratio  = d.veh>0 ? onDuty/d.veh : 0;           // 人車比
+  let status;
+  if(load>P.redT) status='red'; else if(load>P.amberT) status='amber';
+  else if(load>=P.lowT) status='green'; else status='blue';
+  return {onDuty,capP,demand,load,gapQ,needP,ratio,status};
+}
+function rows(){
+  return DATA.filter(d=>dept==='all'||deptOf(d.st)===dept).map(d=>({d,m:calc(d)}));
+}
+
+function renderKPI(){
+  const r=rows();
+  const cap=r.reduce((a,x)=>a+x.m.capP,0);
+  const dem=r.reduce((a,x)=>a+x.m.demand,0);
+  const onD=r.reduce((a,x)=>a+x.m.onDuty,0);
+  const veh=r.reduce((a,x)=>a+x.d.veh,0);
+  const gap=Math.max(0,dem-cap);
+  const short=r.filter(x=>x.m.load>P.amberT).length;
+  const util=cap>0?dem/cap*100:0;
+  const cards=[
+    {l:'監控站數',n:r.length,u:'末端站'},
+    {l:'件量需求',n:fmt(dem),u:'件 / 日'},
+    {l:'人力運能',n:fmt(cap),u:`${Math.round(onD)} 人到班`},
+    {l:'整體利用率',n:Math.round(util)+'%',u:util>P.amberT?'吃緊':'尚有餘裕',c:util>P.redT?COL.red:util>P.amberT?COL.amber:COL.green},
+    {l:'件量缺口',n:fmt(gap),u:gap>0?'需委外/調度':'無',c:gap>0?COL.red:COL.green},
+    {l:'吃緊站數',n:short,u:`利用率>${P.amberT}%`,c:short>0?COL.amber:COL.green},
+  ];
+  document.getElementById('kpis').innerHTML=cards.map(c=>
+    `<div class="kpi"><div class="l">${c.l}</div><div class="n mono" style="color:${c.c||'var(--ink)'}">${c.n}</div><div class="u">${c.u}</div></div>`).join('');
+}
+
+const HINTS={
+  vol:'長條=人力運能,黑線=件量需求。線在長條內 = 吃得下;超出 = 缺口(靠調度或委外)。利用率依門檻變色。',
+  ppl:'把件量缺口換算成「人」。紅色向右=缺人、藍色向左=餘裕。一人標準產能 = 人均參數。',
+  veh:'每日到班人數 ÷ 配送車數(已扣轉運大車)。虛線=1.0(一人一車)。>1 車不足、<1 車閒置。'
+};
+
+function renderChart(){
+  document.getElementById('tabhint').textContent=HINTS[view];
+  const r=rows();
+  let html='';
+  if(view==='vol'){
+    const max=Math.max(...r.map(x=>Math.max(x.m.capP,x.m.demand)),1);
+    r.sort((a,b)=>b.m.load-a.m.load);
+    html=r.map(({d,m})=>{
+      const c=COL[m.status];
+      const capW=m.capP/max*100, demL=m.demand/max*100;
+      return rowHTML(d, `
+        <div class="track">
+          <div class="fill" style="width:${capW}%;background:${c}"></div>
+          <div class="marker" style="left:${Math.min(demL,100)}%" title="需求 ${fmt(m.demand)}"></div>
+        </div>`,
+        `<span class="mono" style="color:${c}">${Math.round(m.load)}%</span> <span class="s mono">${fmt(m.demand)}</span>`);
+    }).join('');
+    legend([['var(--line2)','運能(底)'],[COL.green,'健康'],[COL.amber,'吃緊'],[COL.red,'缺口'],['line','需求']]);
+  }
+  else if(view==='ppl'){
+    const max=Math.max(...r.map(x=>Math.abs(x.m.needP)),1);
+    r.sort((a,b)=>b.m.needP-a.m.needP);
+    html=r.map(({d,m})=>{
+      const v=m.needP, short=v>0, c=short?COL.red:COL.blue;
+      const w=Math.abs(v)/max*50;
+      return rowHTML(d, `
+        <div class="track" style="background:transparent">
+          <div class="center"></div>
+          <div class="fill" style="${short?'left:50%':'right:50%'};width:${w}%;background:${c};top:0;bottom:0"></div>
+        </div>`,
+        `<span class="mono" style="color:${c}">${v>0?'+':''}${v.toFixed(1)} 人</span>`);
+    }).join('');
+    legend([[COL.red,'缺人 →'],[COL.blue,'← 餘裕']]);
+  }
+  else {
+    const max=Math.max(...r.map(x=>x.m.ratio),1.2);
+    const oneL=1/max*100;
+    r.sort((a,b)=>b.m.ratio-a.m.ratio);
+    html=r.map(({d,m})=>{
+      const rt=m.ratio, c=rt>1.1?COL.red:rt<0.6?COL.blue:COL.green;
+      return rowHTML(d, `
+        <div class="track">
+          <div class="fill" style="width:${rt/max*100}%;background:${c}"></div>
+          <div class="marker" style="left:${oneL}%;border-left:1.5px dashed var(--ink);width:0;opacity:.5"></div>
+        </div>`,
+        `<span class="mono" style="color:${c}">${rt.toFixed(2)}</span> <span class="s mono">${Math.round(m.onDuty)}人/${d.veh}車</span>`);
+    }).join('');
+    legend([[COL.red,'車不足(人>車)'],[COL.green,'平衡'],[COL.blue,'車閒置']]);
+  }
+  document.getElementById('chart').innerHTML=html;
+}
+function rowHTML(d, mid, val){
+  const m=calc(d);
+  return `<div class="row">
+    <div class="rname"><span class="sdot" style="background:${COL[m.status]}"></span>
+      <span>${d.st}<div class="g">${d.group||deptOf(d.st)}</div></span></div>
+    ${mid}
+    <div class="rval">${val}</div>
+  </div>`;
+}
+function legend(items){
+  document.getElementById('legend').innerHTML=items.map(([c,t])=>
+    c==='line'?`<span><i style="width:2px;height:13px;border-radius:0;background:var(--ink)"></i>${t}</span>`
+    :`<span><i style="background:${c}"></i>${t}</span>`).join('');
+}
+
+function renderFoot(){
+  document.getElementById('foot').innerHTML=
+    `<b>運算式</b> 每日到班 = 編制總 × 排班係數(${P.sched}) × 到班率(${P.attend}) ｜ 人力運能 = 到班 × 人均(${P.perCap} 件) ｜ 利用率 = 需求 ÷ 運能<br>
+     <b>待補/待確認</b> ① 人均 53 為現況件÷總人推得,屬相對基準,可於參數面板調整為目標標準 ② 4 台轉運大車已自車基數扣除,所屬 1–2 站待指認 ③ 車運能(件)需車型件數對照表才能算,本版車以人車比呈現 ④ St4/SS4 站號待對帳<br>
+     <b>部署</b> DATA 與參數區換成 GAS(讀 Google Sheet)回傳即上線;此檔可直接放 GitHub Pages。`;
+}
+
+/* params panel */
+const FIELDS=[
+  {k:'sched', label:'排班係數', min:1.0,max:1.6,step:0.05, desc:'在職基數 = 編制總 × 此值(輪休覆蓋)'},
+  {k:'attend',label:'每日到班率', min:0.5,max:1.0,step:0.05, desc:'到班人 = 在職基數 × 此值'},
+  {k:'perCap',label:'標準人均(件/人)', min:30,max:130,step:1, desc:'一名(總)人力每日標準件量'},
+  {k:'target',label:'總目標件量(月)', min:600000,max:1400000,step:20000, desc:'目標模式用,依占比分到各站'},
+  {k:'days',  label:'配送天數(月)', min:22,max:31,step:1, desc:'月量攤成日量的除數'},
+  {k:'redT',  label:'紅燈門檻(%)', min:100,max:140,step:1, desc:'利用率高於此為紅'},
+];
+function renderFields(){
+  document.getElementById('fields').innerHTML=FIELDS.map(f=>{
+    const v=P[f.k];
+    const disp=f.k==='target'?fmt(v):(f.k==='attend'||f.k==='sched'?v:v);
+    return `<div class="field">
+      <label>${f.label}<span class="pv mono" id="pv_${f.k}">${disp}</span></label>
+      <input type="range" id="rg_${f.k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${v}">
+      <div class="desc">${f.desc}</div></div>`;
+  }).join('');
+  FIELDS.forEach(f=>{
+    const rg=document.getElementById('rg_'+f.k);
+    rg.oninput=()=>{ P[f.k]=parseFloat(rg.value);
+      document.getElementById('pv_'+f.k).textContent=f.k==='target'?fmt(P[f.k]):P[f.k];
+      renderAll(); };
+  });
+}
+function renderShares(){
+  const list=document.getElementById('shareList'); if(!list) return;
+  const ds=[...DATA].sort((a,b)=>shareOf(b)-shareOf(a));
+  list.innerHTML=ds.map(d=>
+    `<div class="sharerow"><span class="nm">${d.st}</span>
+      <input type="number" step="0.1" min="0" data-st="${d.st}" value="${(shareOf(d)*100).toFixed(1)}"> %</div>`).join('');
+  list.querySelectorAll('input').forEach(inp=>inp.oninput=()=>{
+    const v=parseFloat(inp.value); shareOverride[inp.dataset.st]=isNaN(v)?0:v/100;
+    updateShareTot(); if(mode==='tgt') renderAll();
+  });
+  updateShareTot();
+}
+function updateShareTot(){
+  const el=document.getElementById('shareTot'); if(!el) return;
+  const t=DATA.reduce((a,d)=>a+shareOf(d),0)*100;
+  el.textContent='合計 '+t.toFixed(1)+'%';
+  el.style.color = Math.abs(t-100)>0.5 ? 'var(--amber)' : 'var(--accent)';
+}
+function renderAll(){ renderKPI(); renderChart(); renderFoot(); renderShares(); }
+
+/* ===== 連 GAS:JSONP 讀 Sheet,失敗則用內建範例 ===== */
+function setStatus(t, warn){
+  var el=document.getElementById('status'); if(!el) return;
+  el.textContent=t; el.style.color = warn ? 'var(--amber)' : 'var(--accent)';
+  el.style.borderColor = warn ? 'var(--amber)' : 'var(--accent)';
+}
+function num(x){ var n=Number(x); return isFinite(n)?n:0; }
+function normalize(o){
+  return {st:String(o.st||''),group:String(o.group||''),
+    tot:num(o.tot),deli:num(o.deli),ops:num(o.ops),disp:num(o.disp),
+    veh:num(o.veh),share:num(o.share),actM:num(o.actM)};
+}
+function loadFromGAS(){
+  if(!GAS_URL || GAS_URL.indexOf('script.google.com')<0){ setStatus('未設定 GAS,使用內建範例', true); return; }
+  setStatus('載入中…'); var done=false;
+  window.__capCb=function(res){
+    done=true;
+    if(res && res.error){ setStatus('GAS:'+res.error+',使用內建範例', true); renderFields(); renderAll(); return; }
+    if(res && res.stations && res.stations.length){
+      DATA = res.stations.map(normalize);
+      shareOverride = {};
+      if(res.params) Object.keys(res.params).forEach(function(k){
+        if(res.params[k]!=null && !isNaN(res.params[k])) DEFAULTS[k]=Number(res.params[k]);
+      });
+      P = {...DEFAULTS};
+      setStatus('● 已連線 Sheet'+(res.updatedAt?' · '+res.updatedAt:''));
+    } else { setStatus('Sheet 無資料,使用內建範例', true); }
+    renderFields(); renderAll();
+  };
+  var s=document.createElement('script');
+  s.src=GAS_URL+'?callback=__capCb&t='+Date.now();
+  s.onerror=function(){ if(!done){ setStatus('連線失敗,使用內建範例', true); } };
+  document.body.appendChild(s);
+  setTimeout(function(){ if(!done) setStatus('連線逾時,使用內建範例', true); }, 9000);
+}
+
+/* events */
+document.querySelectorAll('#modeSeg button').forEach(b=>b.onclick=()=>{
+  mode=b.dataset.m; document.querySelectorAll('#modeSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderAll();});
+document.querySelectorAll('#deptSeg button').forEach(b=>b.onclick=()=>{
+  dept=b.dataset.d; document.querySelectorAll('#deptSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderAll();});
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
+  view=b.dataset.v; document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b)); renderChart();});
+const scrim=document.getElementById('scrim'), drawer=document.getElementById('drawer');
+const openD=()=>{scrim.classList.add('on');drawer.classList.add('on')};
+const closeD=()=>{scrim.classList.remove('on');drawer.classList.remove('on')};
+document.getElementById('openParam').onclick=openD;
+document.getElementById('closeParam').onclick=closeD;
+scrim.onclick=closeD;
+document.getElementById('resetParam').onclick=()=>{P={...DEFAULTS};shareOverride={};renderFields();renderAll();};
+
+renderFields(); renderAll(); loadFromGAS();
+</script>
+</body>
+</html>
