@@ -200,7 +200,7 @@
   <div class="field">
     <label>資料 <span class="desc" style="font-weight:400">可從 Excel 整塊貼上</span></label>
     <textarea id="impText" rows="11" spellcheck="false"></textarea>
-    <div class="desc">第一列為表頭:站名,組,編制總,配送,維運,派遣,車,占比,實際月量(占比用小數)。打開時已帶入目前資料供編輯。</div>
+    <div class="desc">第一列為表頭:站名,組,配送人口,派遣,車,占比,實際月量(占比用小數)。配送人口=309口徑(配送+維運配送+中級配送)。打開時已帶入目前資料供編輯。</div>
   </div>
   <label class="filelab">📄 從 CSV 檔載入<input type="file" id="impFile" accept=".csv,.txt" hidden></label>
   <button class="resetb" id="doImport" style="background:var(--accent);color:#fff;border-color:var(--accent);margin-top:14px;font-weight:500">⬆ 匯入並同步</button>
@@ -214,7 +214,7 @@
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbws0sGYpoYCmTscXgPVNVJr0oLcfWKabAm1QZCVp1fb6OehCXAslMMeZA-x4pCfq9c8/exec';
 
 /* 以下為內建範例,連得上 GAS 會被 Sheet 資料覆蓋;連不上則沿用此範例 */
-let DATA = [{"st":"CS12","group":"中彰組","tot":34,"deli":32,"ops":1,"disp":0,"veh":34,"share":0.10592,"actM":65728},{"st":"Nt21","group":"北一南組","tot":29,"deli":23,"ops":4,"disp":1,"veh":30,"share":0.07651,"actM":47971},{"st":"Nt17","group":"北二北組","tot":25,"deli":21,"ops":3,"disp":0,"veh":19,"share":0.07064,"actM":44096},{"st":"NS15","group":"北二南組","tot":14,"deli":12,"ops":1,"disp":0,"veh":12,"share":0.04994,"actM":31186},{"st":"TS3","group":"桃竹一組","tot":16,"deli":13,"ops":3,"disp":0,"veh":8,"share":0.04727,"actM":29471},{"st":"KS1","group":"南二南組","tot":22,"deli":17,"ops":2,"disp":1,"veh":18,"share":0.04536,"actM":28053},{"st":"NS2","group":"北二北組","tot":15,"deli":12,"ops":3,"disp":0,"veh":21,"share":0.04333,"actM":26896},{"st":"CS3","group":"台中組","tot":17,"deli":13,"ops":3,"disp":3,"veh":16,"share":0.04209,"actM":26027},{"st":"Nt3","group":"北一北組","tot":15,"deli":12,"ops":2,"disp":0,"veh":11,"share":0.04141,"actM":25891},{"st":"NS5","group":"北一北組","tot":16,"deli":13,"ops":2,"disp":0,"veh":14,"share":0.03949,"actM":24602},{"st":"Nt13","group":"北二南組","tot":13,"deli":10,"ops":2,"disp":0,"veh":10,"share":0.03687,"actM":22931},{"st":"Nt16","group":"北一北組","tot":15,"deli":12,"ops":3,"disp":1,"veh":11,"share":0.03512,"actM":21981},{"st":"CS4","group":"台中組","tot":12,"deli":9,"ops":2,"disp":3,"veh":14,"share":0.03144,"actM":19645},{"st":"SS3","group":"南一南組","tot":16,"deli":12,"ops":3,"disp":0,"veh":12,"share":0.0291,"actM":17983},{"st":"TS5","group":"桃竹二組","tot":9,"deli":7,"ops":2,"disp":2,"veh":5,"share":0.02498,"actM":15582},{"st":"TS11","group":"桃竹二組","tot":11,"deli":8,"ops":2,"disp":0,"veh":13,"share":0.02399,"actM":14909},{"st":"Nt19","group":"北一北組","tot":7,"deli":5,"ops":1,"disp":0,"veh":5,"share":0.02181,"actM":13508},{"st":"NS6","group":"桃竹一組","tot":9,"deli":6,"ops":3,"disp":0,"veh":44,"share":0.02108,"actM":12986},{"st":"St8","group":"南一南組","tot":7,"deli":6,"ops":1,"disp":0,"veh":7,"share":0.02047,"actM":12736},{"st":"St6","group":"南一北組","tot":10,"deli":6,"ops":3,"disp":0,"veh":7,"share":0.01927,"actM":11937},{"st":"KS3","group":"南二南組","tot":10,"deli":8,"ops":2,"disp":0,"veh":8,"share":0.01911,"actM":11903},{"st":"TS1","group":"桃竹一組","tot":9,"deli":5,"ops":4,"disp":0,"veh":10,"share":0.0184,"actM":11238},{"st":"NS10","group":"北二南組","tot":6,"deli":3,"ops":3,"disp":0,"veh":4,"share":0.01689,"actM":10667},{"st":"Tt6","group":"桃竹二組","tot":9,"deli":6,"ops":2,"disp":1,"veh":3,"share":0.0168,"actM":10464},{"st":"NS18","group":"北一南組","tot":6,"deli":4,"ops":2,"disp":0,"veh":4,"share":0.01119,"actM":7060},{"st":"SS7","group":"南一南組","tot":5,"deli":3,"ops":2,"disp":0,"veh":13,"share":0.00888,"actM":5583},{"st":"St5","group":"南一北組","tot":6,"deli":3,"ops":0,"disp":0,"veh":3,"share":0.00877,"actM":5505},{"st":"Tt8","group":"桃竹二組","tot":5,"deli":3,"ops":2,"disp":0,"veh":1,"share":0.00606,"actM":3773}];
+let DATA = [{"st": "CS12", "group": "中彰組", "tot": 32, "disp": 0, "veh": 34, "share": 0.10592, "actM": 65728}, {"st": "Nt21", "group": "北一南組", "tot": 23, "disp": 1, "veh": 30, "share": 0.07651, "actM": 47971}, {"st": "Nt17", "group": "北二北組", "tot": 21, "disp": 0, "veh": 19, "share": 0.07064, "actM": 44096}, {"st": "NS15", "group": "北二南組", "tot": 12, "disp": 0, "veh": 12, "share": 0.04994, "actM": 31186}, {"st": "TS3", "group": "桃竹一組", "tot": 13, "disp": 0, "veh": 8, "share": 0.04727, "actM": 29471}, {"st": "KS1", "group": "南二南組", "tot": 17, "disp": 1, "veh": 18, "share": 0.04536, "actM": 28053}, {"st": "NS2", "group": "北二北組", "tot": 12, "disp": 0, "veh": 21, "share": 0.04333, "actM": 26896}, {"st": "CS3", "group": "台中組", "tot": 13, "disp": 3, "veh": 16, "share": 0.04209, "actM": 26027}, {"st": "Nt3", "group": "北一北組", "tot": 12, "disp": 0, "veh": 11, "share": 0.04141, "actM": 25891}, {"st": "NS5", "group": "北一北組", "tot": 13, "disp": 0, "veh": 14, "share": 0.03949, "actM": 24602}, {"st": "Nt13", "group": "北二南組", "tot": 10, "disp": 0, "veh": 10, "share": 0.03687, "actM": 22931}, {"st": "Nt16", "group": "北一北組", "tot": 12, "disp": 1, "veh": 11, "share": 0.03512, "actM": 21981}, {"st": "CS4", "group": "台中組", "tot": 9, "disp": 3, "veh": 14, "share": 0.03144, "actM": 19645}, {"st": "SS3", "group": "南一南組", "tot": 12, "disp": 0, "veh": 12, "share": 0.0291, "actM": 17983}, {"st": "TS5", "group": "桃竹二組", "tot": 7, "disp": 2, "veh": 5, "share": 0.02498, "actM": 15582}, {"st": "TS11", "group": "桃竹二組", "tot": 8, "disp": 0, "veh": 13, "share": 0.02399, "actM": 14909}, {"st": "Nt19", "group": "北一北組", "tot": 5, "disp": 0, "veh": 5, "share": 0.02181, "actM": 13508}, {"st": "NS6", "group": "桃竹一組", "tot": 6, "disp": 0, "veh": 44, "share": 0.02108, "actM": 12986}, {"st": "St8", "group": "南一南組", "tot": 6, "disp": 0, "veh": 7, "share": 0.02047, "actM": 12736}, {"st": "St6", "group": "南一北組", "tot": 6, "disp": 0, "veh": 7, "share": 0.01927, "actM": 11937}, {"st": "KS3", "group": "南二南組", "tot": 8, "disp": 0, "veh": 8, "share": 0.01911, "actM": 11903}, {"st": "TS1", "group": "桃竹一組", "tot": 5, "disp": 0, "veh": 10, "share": 0.0184, "actM": 11238}, {"st": "NS10", "group": "北二南組", "tot": 3, "disp": 0, "veh": 4, "share": 0.01689, "actM": 10667}, {"st": "Tt6", "group": "桃竹二組", "tot": 6, "disp": 1, "veh": 3, "share": 0.0168, "actM": 10464}, {"st": "NS18", "group": "北一南組", "tot": 4, "disp": 0, "veh": 4, "share": 0.01119, "actM": 7060}, {"st": "SS7", "group": "南一南組", "tot": 3, "disp": 0, "veh": 13, "share": 0.00888, "actM": 5583}, {"st": "St5", "group": "南一北組", "tot": 3, "disp": 0, "veh": 3, "share": 0.00877, "actM": 5505}, {"st": "Tt8", "group": "桃竹二組", "tot": 3, "disp": 0, "veh": 1, "share": 0.00606, "actM": 3773}];
 
 /* ============================================================
    參數區 — 正式部署時改成從 Google Sheet「參數」分頁讀取
@@ -222,7 +222,7 @@ let DATA = [{"st":"CS12","group":"中彰組","tot":34,"deli":32,"ops":1,"disp":0
 const DEFAULTS = {
   sched:   1.3,      // 排班係數 (在職基數 = 編制總 × 此值)
   attend:  0.7,      // 每日到班率
-  perCap:  53,       // 標準人均 (件 / 總人 / 日)
+  perCap:  68,       // 標準人均 (件 / 配送人口 / 日,309口徑)
   target:  800000,   // 當月總目標件量
   days:    30,       // 配送天數 / 月
   redT:    110,      // 紅燈門檻 %
@@ -356,16 +356,17 @@ function legend(items){
 
 function renderFoot(){
   document.getElementById('foot').innerHTML=
-    `<b>運算式</b> 每日到班 = 編制總 × 排班係數(${P.sched}) × 到班率(${P.attend}) ｜ 人力運能 = 到班 × 人均(${P.perCap} 件) ｜ 利用率 = 需求 ÷ 運能<br>
-     <b>待補/待確認</b> ① 人均 53 為現況件÷總人推得,屬相對基準,可於參數面板調整為目標標準 ② 4 台轉運大車已自車基數扣除,所屬 1–2 站待指認 ③ 車運能(件)需車型件數對照表才能算,本版車以人車比呈現 ④ St4/SS4 站號待對帳<br>
+    `<b>運算式</b> 每日到班 = 配送人口(309口徑)× 排班係數(${P.sched}) × 到班率(${P.attend}) ｜ 人力運能 = 到班 × 人均(${P.perCap} 件) ｜ 利用率 = 需求 ÷ 運能<br>
+     <b>口徑</b> 配送人口 = 配送專員 + 維運配送專員 + 中級配送專員(全網 309)<br>
+     <b>待補/待確認</b> ① 人均 68 為現況件÷配送人口推得,屬相對基準,可於參數面板調整為目標標準 ② 4 台轉運大車已自車基數扣除,所屬 1–2 站待指認 ③ 車運能(件)需車型件數對照表才能算,本版車以人車比呈現 ④ St4/SS4 站號待對帳<br>
      <b>部署</b> DATA 與參數區換成 GAS(讀 Google Sheet)回傳即上線;此檔可直接放 GitHub Pages。`;
 }
 
 /* params panel */
 const FIELDS=[
-  {k:'sched', label:'排班係數', min:1.0,max:1.6,step:0.05, desc:'在職基數 = 編制總 × 此值(輪休覆蓋)'},
+  {k:'sched', label:'排班係數', min:1.0,max:1.6,step:0.05, desc:'在職基數 = 配送人口 × 此值(輪休覆蓋)'},
   {k:'attend',label:'每日到班率', min:0.5,max:1.0,step:0.05, desc:'到班人 = 在職基數 × 此值'},
-  {k:'perCap',label:'標準人均(件/人)', min:30,max:130,step:1, desc:'一名(總)人力每日標準件量'},
+  {k:'perCap',label:'標準人均(件/人)', min:30,max:130,step:1, desc:'一名配送人力每日標準件量'},
   {k:'target',label:'總目標件量(月)', min:600000,max:1400000,step:20000, desc:'目標模式用,依占比分到各站'},
   {k:'days',  label:'配送天數(月)', min:22,max:31,step:1, desc:'月量攤成日量的除數'},
   {k:'redT',  label:'紅燈門檻(%)', min:100,max:140,step:1, desc:'利用率高於此為紅'},
@@ -405,8 +406,8 @@ function updateShareTot(){
   el.style.color = Math.abs(t-100)>0.5 ? 'var(--amber)' : 'var(--accent)';
 }
 /* ===== 匯入:整理成表格 → POST 寫回 Sheet ===== */
-const ST_HEADER=['站名','組','編制總','配送','維運','派遣','車','占比','實際月量'];
-const ST_KEYS=['st','group','tot','deli','ops','disp','veh','share','actM'];
+const ST_HEADER=['站名','組','配送人口','派遣','車','占比','實際月量'];
+const ST_KEYS=['st','group','tot','disp','veh','share','actM'];
 function currentCSV(){
   var lines=[ST_HEADER.join(',')];
   DATA.forEach(function(d){ lines.push(ST_KEYS.map(function(k){return d[k];}).join(',')); });
@@ -451,7 +452,7 @@ function setStatus(t, warn){
 function num(x){ var n=Number(x); return isFinite(n)?n:0; }
 function normalize(o){
   return {st:String(o.st||''),group:String(o.group||''),
-    tot:num(o.tot),deli:num(o.deli),ops:num(o.ops),disp:num(o.disp),
+    tot:num(o.tot),disp:num(o.disp),
     veh:num(o.veh),share:num(o.share),actM:num(o.actM)};
 }
 function loadFromGAS(){
