@@ -43,6 +43,9 @@
     padding:7px 13px;font-size:13px;color:var(--ink);cursor:pointer;display:inline-flex;gap:6px;align-items:center}
   .pbtn:hover{border-color:var(--accent);color:var(--accent)}
   .statuspill{font-size:11px;color:var(--accent);border:1px solid var(--line);border-radius:6px;padding:4px 9px}
+  .sortsel{font-family:var(--tc);font-size:13px;color:var(--ink);background:var(--panel);
+    border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer}
+  .sortsel:focus{outline:none;border-color:var(--accent)}
 
   /* kpis */
   .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:11px;margin:18px 0}
@@ -140,6 +143,11 @@
         <button data-d="中南">中南</button>
       </div>
       <span class="statuspill mono" id="status">載入中…</span>
+      <select id="sortSel" class="sortsel">
+        <option value="gap">排序:最缺優先</option>
+        <option value="surplus">排序:最有餘優先</option>
+        <option value="name">排序:站名</option>
+      </select>
       <div class="spacer"></div>
       <button class="pbtn" id="openImport">⬆ 匯入資料</button>
       <button class="pbtn" id="openParam">⚙ 參數試算</button>
@@ -223,7 +231,7 @@ const DEFAULTS = {
 };
 let P = {...DEFAULTS};
 let shareOverride = {};   // 各站配比試算覆寫 {站:小數}
-let mode='act', dept='all', view='vol';
+let mode='act', dept='all', view='vol', sortMode='gap';
 
 const COL={red:'#D84541',amber:'#E0931F',green:'#5C9224',blue:'#3580D0'};
 const fmt=n=>Math.round(n).toLocaleString();
@@ -269,7 +277,7 @@ function renderKPI(){
 }
 
 const HINTS={
-  vol:'長條=該站需求(100%)。綠色=運能蓋得住的部分,紅色=補不掉的缺口。整列收在 100% 內,紅越長缺越多。',
+  vol:'長條填到哪 = 運能覆蓋需求的比例;沒填滿的空白就是缺口。顏色越紅代表缺越多,藍色為運能有餘。',
   ppl:'把件量缺口換算成「人」。紅色向右=缺人、藍色向左=餘裕。一人標準產能 = 人均參數。',
   veh:'每日到班人數 ÷ 配送車數(已扣轉運大車)。虛線=1.0(一人一車)。>1 車不足、<1 車閒置。'
 };
@@ -279,29 +287,28 @@ function renderChart(){
   const r=rows();
   let html='';
   if(view==='vol'){
-    // 以「需求 = 100%」為基準:綠色=運能覆蓋的部分,紅色=補不掉的缺口(收在100%內)
-    r.sort((a,b)=>(b.m.demand-b.m.capP)-(a.m.demand-a.m.capP));  // 缺口大→小
+    // 長條填到哪 = 運能覆蓋需求的比例;沒填滿的空白即缺口。單色,顏色=燈號
+    const cov=x=>x.m.capP/Math.max(x.m.demand,1);
+    const sorters={gap:(a,b)=>cov(a)-cov(b), surplus:(a,b)=>cov(b)-cov(a), name:(a,b)=>a.d.st.localeCompare(b.d.st)};
+    r.sort(sorters[sortMode]||sorters.gap);
     html=r.map(({d,m})=>{
-      const cover = m.demand>0 ? Math.min(m.capP/m.demand,1) : 1;   // 覆蓋率 0~1
-      const covPct = Math.round(cover*100);
-      const gap = Math.max(0, Math.round(m.demand-m.capP));         // 缺口件
-      const surplus = Math.max(0, Math.round(m.capP-m.demand));     // 餘裕件
-      const covW = cover*100;
-      const bar = `
-        <div class="track">
-          <div class="fill" style="left:0;width:${covW}%;background:${gap>0?COL.green:COL.blue}"></div>
-          ${gap>0?`<div class="fill" style="left:${covW}%;width:${100-covW}%;background:${COL.red};opacity:.62"></div>`:''}
-        </div>`;
+      const ratio = m.demand>0 ? m.capP/m.demand : 1;     // 覆蓋率
+      const covW  = Math.min(ratio,1)*100;                // 長條填滿比例(上限100)
+      const gap   = Math.max(0, Math.round(m.demand-m.capP));
+      const surplus = Math.max(0, Math.round(m.capP-m.demand));
+      const c = COL[m.status];
+      const bar = `<div class="track"><div class="fill" style="left:0;width:${covW}%;background:${c}"></div></div>`;
       const val = gap>0
-        ? `<span class="mono" style="color:${COL.red}">缺 ${fmt(gap)}</span> <span class="s mono">覆蓋${covPct}%</span>`
-        : `<span class="mono" style="color:${COL.blue}">餘 ${fmt(surplus)}</span> <span class="s mono">100%</span>`;
+        ? `<span class="mono" style="color:${c}">缺 ${fmt(gap)}</span> <span class="s mono">覆蓋${Math.round(ratio*100)}%</span>`
+        : `<span class="mono" style="color:${c}">餘 ${fmt(surplus)}</span> <span class="s mono">${Math.round(ratio*100)}%</span>`;
       return rowHTML(d, bar, val);
     }).join('');
-    legend([[COL.green,'運能覆蓋'],[COL.red,'缺口(補不掉)'],[COL.blue,'運能有餘']]);
+    legend([[COL.red,'缺很多'],[COL.amber,'略缺'],[COL.green,'蓋得住'],[COL.blue,'運能有餘'],['var(--line2)','空白=缺口']]);
   }
   else if(view==='ppl'){
     const max=Math.max(...r.map(x=>Math.abs(x.m.needP)),1);
-    r.sort((a,b)=>b.m.needP-a.m.needP);
+    const sorters={gap:(a,b)=>b.m.needP-a.m.needP, surplus:(a,b)=>a.m.needP-b.m.needP, name:(a,b)=>a.d.st.localeCompare(b.d.st)};
+    r.sort(sorters[sortMode]||sorters.gap);
     html=r.map(({d,m})=>{
       const v=m.needP, short=v>0, c=short?COL.red:COL.blue;
       const w=Math.abs(v)/max*50;
@@ -317,7 +324,8 @@ function renderChart(){
   else {
     const max=Math.max(...r.map(x=>x.m.ratio),1.2);
     const oneL=1/max*100;
-    r.sort((a,b)=>b.m.ratio-a.m.ratio);
+    const sorters={gap:(a,b)=>b.m.ratio-a.m.ratio, surplus:(a,b)=>a.m.ratio-b.m.ratio, name:(a,b)=>a.d.st.localeCompare(b.d.st)};
+    r.sort(sorters[sortMode]||sorters.gap);
     html=r.map(({d,m})=>{
       const rt=m.ratio, c=rt>1.1?COL.red:rt<0.6?COL.blue:COL.green;
       return rowHTML(d, `
@@ -477,6 +485,7 @@ document.querySelectorAll('#deptSeg button').forEach(b=>b.onclick=()=>{
   dept=b.dataset.d; document.querySelectorAll('#deptSeg button').forEach(x=>x.classList.toggle('on',x===b)); renderAll();});
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   view=b.dataset.v; document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b)); renderChart();});
+document.getElementById('sortSel').onchange=e=>{ sortMode=e.target.value; renderChart(); };
 const scrim=document.getElementById('scrim'), drawer=document.getElementById('drawer');
 const impDrawer=document.getElementById('impDrawer');
 const openD=()=>{closeImp();scrim.classList.add('on');drawer.classList.add('on')};
