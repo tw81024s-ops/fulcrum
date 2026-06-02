@@ -269,7 +269,7 @@ function renderKPI(){
 }
 
 const HINTS={
-  vol:'長條=人力運能,黑線=件量需求。線在長條內 = 吃得下;超出 = 缺口(靠調度或委外)。利用率依門檻變色。',
+  vol:'長條=該站需求(100%)。綠色=運能蓋得住的部分,紅色=補不掉的缺口。整列收在 100% 內,紅越長缺越多。',
   ppl:'把件量缺口換算成「人」。紅色向右=缺人、藍色向左=餘裕。一人標準產能 = 人均參數。',
   veh:'每日到班人數 ÷ 配送車數(已扣轉運大車)。虛線=1.0(一人一車)。>1 車不足、<1 車閒置。'
 };
@@ -279,19 +279,25 @@ function renderChart(){
   const r=rows();
   let html='';
   if(view==='vol'){
-    const max=Math.max(...r.map(x=>Math.max(x.m.capP,x.m.demand)),1);
-    r.sort((a,b)=>b.m.load-a.m.load);
+    // 以「需求 = 100%」為基準:綠色=運能覆蓋的部分,紅色=補不掉的缺口(收在100%內)
+    r.sort((a,b)=>(b.m.demand-b.m.capP)-(a.m.demand-a.m.capP));  // 缺口大→小
     html=r.map(({d,m})=>{
-      const c=COL[m.status];
-      const capW=m.capP/max*100, demL=m.demand/max*100;
-      return rowHTML(d, `
+      const cover = m.demand>0 ? Math.min(m.capP/m.demand,1) : 1;   // 覆蓋率 0~1
+      const covPct = Math.round(cover*100);
+      const gap = Math.max(0, Math.round(m.demand-m.capP));         // 缺口件
+      const surplus = Math.max(0, Math.round(m.capP-m.demand));     // 餘裕件
+      const covW = cover*100;
+      const bar = `
         <div class="track">
-          <div class="fill" style="width:${capW}%;background:${c}"></div>
-          <div class="marker" style="left:${Math.min(demL,100)}%" title="需求 ${fmt(m.demand)}"></div>
-        </div>`,
-        `<span class="mono" style="color:${c}">${Math.round(m.load)}%</span> <span class="s mono">${fmt(m.demand)}</span>`);
+          <div class="fill" style="left:0;width:${covW}%;background:${gap>0?COL.green:COL.blue}"></div>
+          ${gap>0?`<div class="fill" style="left:${covW}%;width:${100-covW}%;background:${COL.red};opacity:.62"></div>`:''}
+        </div>`;
+      const val = gap>0
+        ? `<span class="mono" style="color:${COL.red}">缺 ${fmt(gap)}</span> <span class="s mono">覆蓋${covPct}%</span>`
+        : `<span class="mono" style="color:${COL.blue}">餘 ${fmt(surplus)}</span> <span class="s mono">100%</span>`;
+      return rowHTML(d, bar, val);
     }).join('');
-    legend([['var(--line2)','運能(底)'],[COL.green,'健康'],[COL.amber,'吃緊'],[COL.red,'缺口'],['line','需求']]);
+    legend([[COL.green,'運能覆蓋'],[COL.red,'缺口(補不掉)'],[COL.blue,'運能有餘']]);
   }
   else if(view==='ppl'){
     const max=Math.max(...r.map(x=>Math.abs(x.m.needP)),1);
