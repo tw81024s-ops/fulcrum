@@ -105,6 +105,12 @@
   .sharerow input{width:62px;font-family:var(--mono);font-size:12px;text-align:right;border:1px solid var(--line);
     border-radius:5px;padding:4px 6px;background:var(--panel)}
   .sharerow input:focus{outline:none;border-color:var(--accent)}
+  #impText{width:100%;font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);
+    border-radius:6px;padding:8px;background:var(--panel);color:var(--ink);resize:vertical;white-space:pre;overflow-x:auto}
+  #impText:focus{outline:none;border-color:var(--accent)}
+  .filelab{display:inline-block;font-size:12px;color:var(--accent);border:1px solid var(--line);
+    border-radius:6px;padding:7px 11px;cursor:pointer}
+  .filelab:hover{border-color:var(--accent)}
 
   .legend{display:flex;gap:15px;flex-wrap:wrap;font-size:11px;color:var(--sub);margin-top:14px;align-items:center}
   .legend span{display:inline-flex;align-items:center;gap:5px}
@@ -135,6 +141,7 @@
       </div>
       <span class="statuspill mono" id="status">載入中…</span>
       <div class="spacer"></div>
+      <button class="pbtn" id="openImport">⬆ 匯入資料</button>
       <button class="pbtn" id="openParam">⚙ 參數試算</button>
     </div>
   </div>
@@ -171,6 +178,25 @@
   <div class="dsub" style="margin:-6px 0 10px">用於「目標」模式分配總目標件量。共用/正式配比請改 Sheet「站所」的占比欄。</div>
   <div id="shareList"></div>
   <button class="resetb" id="resetParam">↺ 還原預設</button>
+</aside>
+
+<aside class="drawer" id="impDrawer">
+  <button class="close" id="closeImp">×</button>
+  <h3>匯入資料</h3>
+  <div class="dsub">寫回 Google Sheet「站所」分頁(整批覆蓋),所有人重整即同步。需匯入密碼。</div>
+  <div class="field">
+    <label>匯入密碼</label>
+    <input type="password" id="impPw" placeholder="Code.gs 裡設定的 WRITE_TOKEN" style="width:100%;font-family:var(--mono);border:1px solid var(--line);border-radius:6px;padding:8px 10px">
+    <div class="desc">與後端 WRITE_TOKEN 一致才能寫入</div>
+  </div>
+  <div class="field">
+    <label>資料 <span class="desc" style="font-weight:400">可從 Excel 整塊貼上</span></label>
+    <textarea id="impText" rows="11" spellcheck="false"></textarea>
+    <div class="desc">第一列為表頭:站名,組,編制總,配送,維運,派遣,車,占比,實際月量(占比用小數)。打開時已帶入目前資料供編輯。</div>
+  </div>
+  <label class="filelab">📄 從 CSV 檔載入<input type="file" id="impFile" accept=".csv,.txt" hidden></label>
+  <button class="resetb" id="doImport" style="background:var(--accent);color:#fff;border-color:var(--accent);margin-top:14px;font-weight:500">⬆ 匯入並同步</button>
+  <div id="impStatus" style="font-size:12.5px;margin-top:12px;line-height:1.6"></div>
 </aside>
 
 <script>
@@ -364,6 +390,42 @@ function updateShareTot(){
   el.textContent='合計 '+t.toFixed(1)+'%';
   el.style.color = Math.abs(t-100)>0.5 ? 'var(--amber)' : 'var(--accent)';
 }
+/* ===== 匯入:整理成表格 → POST 寫回 Sheet ===== */
+const ST_HEADER=['站名','組','編制總','配送','維運','派遣','車','占比','實際月量'];
+const ST_KEYS=['st','group','tot','deli','ops','disp','veh','share','actM'];
+function currentCSV(){
+  var lines=[ST_HEADER.join(',')];
+  DATA.forEach(function(d){ lines.push(ST_KEYS.map(function(k){return d[k];}).join(',')); });
+  return lines.join('\n');
+}
+function parseTable(text){
+  var lines=text.replace(/\r/g,'').split('\n').filter(function(l){return l.trim();});
+  if(!lines.length) return [];
+  var delim = lines[0].indexOf('\t')>=0 ? '\t' : ',';
+  return lines.map(function(l){
+    return l.split(delim).map(function(c){ c=c.trim(); return (c!=='' && !isNaN(c))?Number(c):c; });
+  });
+}
+function impStatus(t, warn){
+  var el=document.getElementById('impStatus'); if(!el) return;
+  el.textContent=t; el.style.color = warn?'var(--red)':'var(--accent)';
+}
+function doImport(){
+  var pw=document.getElementById('impPw').value.trim();
+  if(!pw){ impStatus('請先輸入匯入密碼', true); return; }
+  var rows=parseTable(document.getElementById('impText').value);
+  if(rows.length<2){ impStatus('沒有可匯入的資料列', true); return; }
+  impStatus('匯入中…');
+  fetch(GAS_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({token:pw, rows:rows})})
+    .then(function(r){return r.json();})
+    .then(function(res){
+      if(res && res.ok){ impStatus('✓ 已匯入 '+res.count+' 站,同步中…'); loadFromGAS(); setTimeout(closeImp,1300); }
+      else impStatus('匯入失敗:'+((res&&res.error)||'未知'), true);
+    })
+    .catch(function(){ impStatus('已送出,重新讀取確認中…(若仍未更新請檢查密碼)'); loadFromGAS(); setTimeout(closeImp,1600); });
+}
+
 function renderAll(){ renderKPI(); renderChart(); renderFoot(); renderShares(); }
 
 /* ===== 連 GAS:JSONP 讀 Sheet,失敗則用內建範例 ===== */
@@ -410,11 +472,21 @@ document.querySelectorAll('#deptSeg button').forEach(b=>b.onclick=()=>{
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{
   view=b.dataset.v; document.querySelectorAll('#tabs button').forEach(x=>x.classList.toggle('on',x===b)); renderChart();});
 const scrim=document.getElementById('scrim'), drawer=document.getElementById('drawer');
-const openD=()=>{scrim.classList.add('on');drawer.classList.add('on')};
+const impDrawer=document.getElementById('impDrawer');
+const openD=()=>{closeImp();scrim.classList.add('on');drawer.classList.add('on')};
 const closeD=()=>{scrim.classList.remove('on');drawer.classList.remove('on')};
+const openImp=()=>{closeD();document.getElementById('impText').value=currentCSV();impStatus('');scrim.classList.add('on');impDrawer.classList.add('on')};
+function closeImp(){impDrawer.classList.remove('on'); if(!drawer.classList.contains('on'))scrim.classList.remove('on');}
 document.getElementById('openParam').onclick=openD;
 document.getElementById('closeParam').onclick=closeD;
-scrim.onclick=closeD;
+document.getElementById('openImport').onclick=openImp;
+document.getElementById('closeImp').onclick=closeImp;
+document.getElementById('doImport').onclick=doImport;
+document.getElementById('impFile').onchange=function(e){
+  var f=e.target.files[0]; if(!f) return;
+  var rd=new FileReader(); rd.onload=function(){document.getElementById('impText').value=rd.result;}; rd.readAsText(f,'utf-8');
+};
+scrim.onclick=()=>{closeD();closeImp();};
 document.getElementById('resetParam').onclick=()=>{P={...DEFAULTS};shareOverride={};renderFields();renderAll();};
 
 renderFields(); renderAll(); loadFromGAS();
